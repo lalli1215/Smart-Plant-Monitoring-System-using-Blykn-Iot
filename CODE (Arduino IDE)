@@ -1,0 +1,100 @@
+/* 
+   Smart Plant Monitoring System
+
+   Connections:
+   Relay -> D3
+   Button -> D7
+   Soil Moisture -> A0
+   PIR Sensor -> D5
+   SDA -> D2
+   SCL -> D1
+   Temp Sensor (DHT11) -> D4
+*/
+
+// Include the library files
+#include <LiquidCrystal_I2C.h>
+#define BLYNK_PRINT Serial
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <DHT.h>
+
+// Initialize the LCD display
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
+
+// Blynk Authentication and WiFi credentials
+char auth[] = " ";   // Enter your Blynk Auth Token
+char ssid[] = " ";   // Enter your WiFi SSID
+char pass[] = " ";   // Enter your WiFi Password
+
+// Initialize DHT11 Temperature Sensor
+DHT dht(D4, DHT11);  // (Pin, Sensor Type)
+
+// Blynk Timer
+BlynkTimer timer;
+
+// Define component pins
+#define soil A0         // Soil Moisture Sensor
+#define PIR D5          // PIR Motion Sensor
+#define RELAY_PIN_1 D3  // Relay
+#define PUSH_BUTTON_1 D7 // Button
+
+// Virtual pins
+#define VPIN_BUTTON_1 V12
+
+// Variables
+int PIR_ToggleValue;
+int relay1State = LOW;
+int pushButton1State = HIGH;
+
+// Variables for temperature & humidity
+double T, P;
+char status;
+
+void setup() {
+  Serial.begin(9600);
+
+  // LCD setup
+  lcd.begin();
+  lcd.backlight();
+
+  // Pin setup
+  pinMode(PIR, INPUT);
+  pinMode(RELAY_PIN_1, OUTPUT);
+  digitalWrite(RELAY_PIN_1, LOW);
+
+  pinMode(PUSH_BUTTON_1, INPUT_PULLUP);
+  digitalWrite(RELAY_PIN_1, relay1State);
+
+  // Start Blynk & DHT
+  Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
+  dht.begin();
+
+  // Display initializing
+  lcd.setCursor(0, 0);
+  lcd.print("  Initializing  ");
+  for (int a = 5; a <= 10; a++) {
+    lcd.setCursor(a, 1);
+    lcd.print(".");
+    delay(200);
+  }
+}
+
+// Handle PIR Sensor toggle from Blynk
+BLYNK_WRITE(V6) {
+  PIR_ToggleValue = param.asInt();
+}
+
+// Sync button state on Blynk connection
+BLYNK_CONNECTED() {
+  Blynk.syncVirtual(VPIN_BUTTON_1);
+}
+
+// Handle button from Blynk
+BLYNK_WRITE(VPIN_BUTTON_1) {
+  timer.run();
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
